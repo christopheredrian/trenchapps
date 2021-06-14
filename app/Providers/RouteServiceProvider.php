@@ -3,11 +3,14 @@
 namespace App\Providers;
 
 use App\Models\Site;
+use Exception;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -56,18 +59,24 @@ class RouteServiceProvider extends ServiceProvider
     {
 
 
-        if ($site = Site::getInstance()) { // can be null when migrating
+        try {
 
-            // routes shared for all sites
-            $domain = get_domain();
-            Route::middleware('web')->namespace($this->namespace)->domain($domain)->group(base_path('routes/web-shared.php'));
+            if (Schema::hasTable('sites') && $site = Site::getInstance()) { // can be null when migrating
 
-            $siteRoutesPath = "routes/sites/$site->identifier.php";
+                // routes shared for all sites
+                $domain = get_domain();
+                Route::middleware('web')->namespace($this->namespace)->domain($domain)->group(base_path('routes/web-shared.php'));
 
-            if (file_exists(base_path($siteRoutesPath))) {
-                // these routes overrides web-shared routes
-                Route::middleware('web')->namespace($this->namespace)->domain($domain)->group(base_path($siteRoutesPath));
+                $siteRoutesPath = "routes/sites/$site->identifier.php";
+
+                if (file_exists(base_path($siteRoutesPath))) {
+                    // these routes overrides web-shared routes
+                    Route::middleware('web')->namespace($this->namespace)->domain($domain)->group(base_path($siteRoutesPath));
+                }
             }
+
+        } catch (QueryException $exception) {
+            // ignore - initial migrations not yet found on tables
         }
 
     }
